@@ -1,5 +1,7 @@
 package com.sheridan.aoas;
 
+import com.jme3.asset.AssetManager;
+import com.jme3.asset.DesktopAssetManager;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -87,6 +89,8 @@ public class ArmorOfAlloys {
     private void commonSetup(final FMLCommonSetupEvent event) {
         // Some common setup code
         LOGGER.info("HELLO FROM COMMON SETUP");
+
+        AssetManager assetManager = new DesktopAssetManager();
 
         if (Config.logDirtBlock) LOGGER.info("DIRT BLOCK >> {}", BuiltInRegistries.BLOCK.getKey(Blocks.DIRT));
 
