@@ -3,10 +3,13 @@ package com.sheridan.aoas;
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.DesktopAssetManager;
 import com.mojang.logging.LogUtils;
+import com.sheridan.aoas.events.common.TestEvents;
+import com.sheridan.aoas.model.gltf.io.GltfModelLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -78,6 +81,7 @@ public class ArmorOfAlloys {
         // Note that this is necessary if and only if we want *this* class (ArmorOfAlloys) to respond directly to events.
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(TestEvents.class);
 
         // Register the item to a creative tab
         modEventBus.addListener(this::addCreative);
@@ -90,13 +94,12 @@ public class ArmorOfAlloys {
         // Some common setup code
         LOGGER.info("HELLO FROM COMMON SETUP");
 
-        AssetManager assetManager = new DesktopAssetManager();
-
         if (Config.logDirtBlock) LOGGER.info("DIRT BLOCK >> {}", BuiltInRegistries.BLOCK.getKey(Blocks.DIRT));
 
         LOGGER.info(Config.magicNumberIntroduction + Config.magicNumber);
 
         Config.items.forEach((item) -> LOGGER.info("ITEM >> {}", item.toString()));
+        GltfModelLoader.loadModel(ResourceLocation.fromNamespaceAndPath(ArmorOfAlloys.MODID, "model_assets/test/m1a2.gltf"));
     }
 
     // Add the example block item to the building blocks tab
