@@ -1,7 +1,5 @@
 package com.sheridan.aoas;
 
-import com.jme3.asset.AssetManager;
-import com.jme3.asset.DesktopAssetManager;
 import com.mojang.logging.LogUtils;
 import com.sheridan.aoas.events.common.TestEvents;
 import com.sheridan.aoas.model.MeshModelData;
@@ -38,35 +36,35 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.slf4j.Logger;
 
-// The value here should match an entry in the META-INF/neoforge.mods.toml file
+// 此处的值需要与 META-INF/neoforge.mods.toml 文件中的某个条目匹配
 @Mod(ArmorOfAlloys.MODID)
 public class ArmorOfAlloys {
-    // Define mod id in a common place for everything to reference
+    // 在公共位置定义模组ID，供所有内容引用
     public static final String MODID = "aoas";
-    // Directly reference a slf4j logger
+    // 直接引用一个slf4j日志记录器
     private static final Logger LOGGER = LogUtils.getLogger();
-    // Create a Deferred Register to hold Blocks which will all be registered under the "aoas" namespace
+    // 创建一个延迟注册表用于存放方块，这些方块都将在 "aoas" 命名空间下注册
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
-    // Create a Deferred Register to hold Items which will all be registered under the "aoas" namespace
+    // 创建一个延迟注册表用于存放物品，这些物品都将在 "aoas" 命名空间下注册
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
-    // Create a Deferred Register to hold CreativeModeTabs which will all be registered under the "aoas" namespace
+    // 创建一个延迟注册表用于存放创意模式标签页，这些标签页都将在 "aoas" 命名空间下注册
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
-    // Creates a new Block with the id "aoas:example_block", combining the namespace and path
+    // 创建一个新的方块，ID为 "aoas:example_block"，结合了命名空间和路径
     public static final DeferredBlock<Block> EXAMPLE_BLOCK = BLOCKS.registerSimpleBlock("example_block", BlockBehaviour.Properties.of().mapColor(MapColor.STONE));
-    // Creates a new BlockItem with the id "aoas:example_block", combining the namespace and path
+    // 创建一个新的方块物品，ID为 "aoas:example_block"，结合了命名空间和路径
     public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
 
-    // Creates a new food item with the id "aoas:example_id", nutrition 1 and saturation 2
+    // 创建一个新的食物物品，ID为 "aoas:example_item"，饱食度为1，饱和度为2
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder().alwaysEdible().nutrition(1).saturationModifier(2f).build()));
 
-    // Creates a creative tab with the id "aoas:example_tab" for the example item, that is placed after the combat tab
+    // 创建一个ID为 "aoas:example_tab" 的创意模式标签页，放置在战斗标签页之后
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder().title(Component.translatable("itemGroup.aoas")).withTabsBefore(CreativeModeTabs.COMBAT).icon(() -> EXAMPLE_ITEM.get().getDefaultInstance()).displayItems((parameters, output) -> {
-        output.accept(EXAMPLE_ITEM.get()); // Add the example item to the tab. For your own tabs, this method is preferred over the event
+        output.accept(EXAMPLE_ITEM.get()); // 将示例物品添加到标签页中。对于自己的标签页，推荐使用此方法而不是事件
     }).build());
 
-    // The constructor for the mod class is the first code that is run when your mod is loaded.
-    // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
+    // 模组类的构造函数是加载模组时运行的第一段代码。
+    // FML 会自动识别某些参数类型，例如 IEventBus 或 ModContainer，并自动传入。
     public ArmorOfAlloys(IEventBus modEventBus, ModContainer modContainer) {
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
@@ -92,7 +90,7 @@ public class ArmorOfAlloys {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-        // Some common setup code
+        // 一些通用
         LOGGER.info("HELLO FROM COMMON SETUP");
 
         if (Config.logDirtBlock) LOGGER.info("DIRT BLOCK >> {}", BuiltInRegistries.BLOCK.getKey(Blocks.DIRT));
@@ -106,24 +104,24 @@ public class ArmorOfAlloys {
         }
     }
 
-    // Add the example block item to the building blocks tab
+    // 将示例方块物品添加到建筑方块标签页中
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) event.accept(EXAMPLE_BLOCK_ITEM);
     }
 
-    // You can use SubscribeEvent and let the Event Bus discover methods to call
+    // 使用 SubscribeEvent 注解，让事件总线自动发现需要调用的方法
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
-        // Do something when the server starts
+        // 当服务开始时, 可以做一些初始化操作
         LOGGER.info("HELLO from server starting");
     }
 
-    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
+    // 使用 EventBusSubscriber 可以自动注册该类中所有使用 @SubscribeEvent 注解的静态方法
     @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientModEvents {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
-            // Some client setup code
+            // 一些客户端初始化代码
             LOGGER.info("HELLO FROM CLIENT SETUP");
             LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
         }
