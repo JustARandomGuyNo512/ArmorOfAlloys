@@ -36,11 +36,11 @@ public class MeshModelData {
     }
 
     public void print() {
-        System.out.println("name: " + name + "parent: " + (parent == null ? "null" : parent.name));
+        System.out.println("{name: " + name + " parent: " + (parent == null ? "null" : parent.name));
         System.out.println("x: " + pose.x + ", y: " + pose.y + ", z: " + pose.z);
         System.out.println("xRot: " + pose.xRot + ", yRot: " + pose.yRot + ", zRot: " + pose.zRot);
         System.out.println("xScale: " + scale.x + ", yScale: " + scale.y + ", zScale: " + scale.z);
-        System.out.println("vertex count: " + vertices.size() + "\n");
+        System.out.println("vertex count: " + vertices.size() + "}\n");
         for (Map.Entry<String, MeshModelData> partEntry : children.entrySet()) {
             partEntry.getValue().print();
         }
