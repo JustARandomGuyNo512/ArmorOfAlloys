@@ -87,12 +87,11 @@ public class GltfModelLoader {
             Quaternion localRotation = joint.getLocalRotation();
             float[] angles = new float[3];
             localRotation.toAngles(angles);
-            bone.setInitialPose(PartPose.offsetAndRotation(
+            bone.setPose(PartPose.offsetAndRotation(
                     localTranslation.x, localTranslation.y, localTranslation.z,
                     angles[0],
                     angles[1],
                     angles[2]));
-            bone.resetPose();
         }
 
         // 如果没有找到根骨骼，则输出错误信息并返回null
