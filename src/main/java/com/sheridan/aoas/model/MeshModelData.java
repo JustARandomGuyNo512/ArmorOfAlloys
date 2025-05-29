@@ -40,6 +40,27 @@ public class MeshModelData {
     }
 
     public void print() {
+        System.out.println(this);
+        System.out.println("vertex count: " + vertices.size());
+        for (Map.Entry<String, MeshModelData> partEntry : children.entrySet()) {
+            System.out.print(partEntry.getKey());
+            partEntry.getValue().print();
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "{" +
+                "x=" + x +
+                ", y=" + y +
+                ", z=" + z +
+                ", xRot=" + xRot +
+                ", yRot=" + yRot +
+                ", zRot=" + zRot +
+                ", xScale=" + xScale +
+                ", yScale=" + yScale +
+                ", zScale=" + zScale +
+                '}';
     }
 
     public void translateAndRotate(PoseStack poseStack) {

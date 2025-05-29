@@ -4,6 +4,7 @@ import com.jme3.asset.AssetManager;
 import com.jme3.asset.DesktopAssetManager;
 import com.mojang.logging.LogUtils;
 import com.sheridan.aoas.events.common.TestEvents;
+import com.sheridan.aoas.model.MeshModelData;
 import com.sheridan.aoas.model.gltf.io.GltfModelLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -99,7 +100,10 @@ public class ArmorOfAlloys {
         LOGGER.info(Config.magicNumberIntroduction + Config.magicNumber);
 
         Config.items.forEach((item) -> LOGGER.info("ITEM >> {}", item.toString()));
-        GltfModelLoader.loadModel(ResourceLocation.fromNamespaceAndPath(ArmorOfAlloys.MODID, "model_assets/test/m1a2.gltf"));
+        MeshModelData meshModelData = GltfModelLoader.loadModel(ResourceLocation.fromNamespaceAndPath(ArmorOfAlloys.MODID, "model_assets/test/m1a2.gltf"));
+        if (meshModelData != null) {
+            meshModelData.print();
+        }
     }
 
     // Add the example block item to the building blocks tab
