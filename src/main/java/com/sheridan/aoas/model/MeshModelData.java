@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 public class MeshModelData {
+    public static final String ROOT = "root";
     protected final List<Vertex> vertices;
     private final Map<String, MeshModelData> children;
     private PartPose initialPose = PartPose.ZERO;
@@ -23,16 +24,19 @@ public class MeshModelData {
     public float yScale = 1.0F;
     public float zScale = 1.0F;
     private MeshModelData parent;
+    private String name;
 
     public MeshModelData() {
         this.children = new Object2ObjectArrayMap<>();
         this.vertices = new ArrayList<>();
+        name = ROOT;
     }
 
 
     public void addChild(String name, MeshModelData bone) {
         this.children.put(name, bone);
         bone.parent = this;
+        bone.name = name;
     }
 
     public void setInitialPose(PartPose partPose) {
@@ -41,6 +45,10 @@ public class MeshModelData {
 
     public void print() {
         System.out.println(this);
+        System.out.println("name: " + name);
+        if (parent != null) {
+            System.out.println("parent: " + parent.name);
+        }
         System.out.println("vertex count: " + vertices.size());
         for (Map.Entry<String, MeshModelData> partEntry : children.entrySet()) {
             System.out.print(partEntry.getKey());
