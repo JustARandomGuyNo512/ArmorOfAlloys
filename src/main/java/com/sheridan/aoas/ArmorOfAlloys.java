@@ -98,10 +98,6 @@ public class ArmorOfAlloys {
         LOGGER.info(Config.magicNumberIntroduction + Config.magicNumber);
 
         Config.items.forEach((item) -> LOGGER.info("ITEM >> {}", item.toString()));
-        MeshModelData meshModelData = GltfModelLoader.loadModel(ResourceLocation.fromNamespaceAndPath(ArmorOfAlloys.MODID, "model_assets/test/m1a2.gltf"));
-        if (meshModelData != null) {
-            meshModelData.print();
-        }
     }
 
     // 将示例方块物品添加到建筑方块标签页中

@@ -88,7 +88,9 @@ public class GltfModelLoader {
             float[] angles = new float[3];
             localRotation.toAngles(angles);
             bone.setPose(PartPose.offsetAndRotation(
-                    localTranslation.x, localTranslation.y, localTranslation.z,
+                    localTranslation.x,
+                    localTranslation.y,
+                    localTranslation.z,
                     angles[0],
                     angles[1],
                     angles[2]));
@@ -114,9 +116,6 @@ public class GltfModelLoader {
                 }
             }
         });
-
-        // 输出模型数据结构
-        root.print();
 
         // 返回模型的数据结构
         return root;

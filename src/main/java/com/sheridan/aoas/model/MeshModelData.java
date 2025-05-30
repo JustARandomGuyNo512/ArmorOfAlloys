@@ -64,7 +64,34 @@ public class MeshModelData {
         return parent;
     }
 
+    public List<Vertex> getVertices() {
+        return vertices;
+    }
+
+    public PartPose getPose() {
+        return pose;
+    }
+
+    public Vector3f getScale() {
+        return scale;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void depthFirstTraversal(Visitor visitor) {
+        visitor.visit(this);
+        for (Map.Entry<String, MeshModelData> partEntry : children.entrySet()) {
+            partEntry.getValue().depthFirstTraversal(visitor);
+        }
+    }
+
     public void pushVertex(float v, float v1, float v2, float u, float v3, float nx, float ny, float nz, int index) {
         vertices.add(new Vertex(v, v1, v2, u, v3, nx, ny, nz, index));
+    }
+
+    public interface Visitor {
+        void visit(MeshModelData modelData);
     }
 }

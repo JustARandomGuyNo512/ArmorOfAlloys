@@ -1,9 +1,12 @@
 package com.sheridan.aoas.model;
 
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import org.joml.Vector3f;
 
 import java.util.stream.Stream;
 
+@OnlyIn(Dist.CLIENT)
 public interface IAnimatedModel {
     Stream<IAnimatedModel> getAllParts();
 
