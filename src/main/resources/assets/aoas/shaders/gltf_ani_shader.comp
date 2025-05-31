@@ -3,9 +3,22 @@ layout(std430, binding = 0) readonly buffer OriginalVertexData {
     float originalBuffer[];
 };
 
+layout(std430, binding = 1) readonly buffer OriginalIndexData {
+    int originalBuffer[];
+};
+
 // part渲染状态
-layout(std430, binding = 1) readonly buffer BoneRenderStatus {
+layout(std430, binding = 2) readonly buffer BoneRenderStatus {
     PartRenderInfo partList[];
+};
+
+// 渲染buffer
+layout(std430, binding = 3) buffer RenderVertexData {
+    float originalBuffer[];
+};
+
+layout(std430, binding = 4) buffer RenderIndexData {
+    int originalBuffer[];
 };
 
 struct BoneRenderStatus {
@@ -18,11 +31,8 @@ struct BoneRenderStatus {
     uint vertexEnd;
 };
 
-// 渲染buffer
-layout(std430, binding = 2) buffer RenderVertexBuffer {
-    float originalBuffer[];
-};
-
 void main() {
+    uint index = gl_GlobalInvocationID.x;
+
 
 }

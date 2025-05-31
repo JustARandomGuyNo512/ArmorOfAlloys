@@ -20,4 +20,10 @@ public interface VertexBufferAccessor {
 
     @Accessor("indexCount")
     void setIndexCount(int count);
+
+    @Accessor("indexBufferId")
+    int getIndexBufferId();
+
+    @Accessor("indexBufferId")
+    void setIndexBufferId(int id);
 }

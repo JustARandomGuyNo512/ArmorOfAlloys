@@ -3,6 +3,7 @@ package com.sheridan.aoas.model.client;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
+import com.sheridan.aoas.mixin.VertexBufferAccessor;
 import com.sheridan.aoas.model.IAnimatedModel;
 import com.sheridan.aoas.model.MeshModelData;
 import com.sheridan.aoas.model.Vertex;
@@ -55,6 +56,7 @@ public class BufferedMeshModel{
 
     private int boneCount = 0;
     private int vertexCount = 0;
+    private int renderingVertexCount = 0;
 
     private int renderStatusBufferId;
     protected ByteBuffer renderStatusBuffer;
@@ -65,7 +67,8 @@ public class BufferedMeshModel{
         IndexToBone = new Object2ObjectArrayMap<>();
         root.depthFirstTraversal((modelData) -> {
             boolean isRoot = MeshModelData.ROOT.equals(modelData.getName());
-            Bone bone = new Bone(boneCount, modelData.getName());
+            List<Vertex> vertices = modelData.getVertices();
+            Bone bone = new Bone(boneCount, modelData.getName(), vertices.size());
             bone.loadPose(modelData);
             boneMap.put(bone.name, bone);
             IndexToBone.put(bone.index, bone);
@@ -74,7 +77,6 @@ public class BufferedMeshModel{
                 Bone parentBone = boneMap.get(parent.getName());
                 parentBone.addChild(bone.name, bone);
             }
-            List<Vertex> vertices = modelData.getVertices();
             vertexMap.put(bone, vertices);
             vertexCount += vertices.size();
             boneCount ++;
@@ -116,8 +118,6 @@ public class BufferedMeshModel{
             boneRenderStatusList.add(boneRenderStatus);
             entry.getKey().boneRenderStatus = boneRenderStatus;
         }
-        renderStatusBufferId = GlStateManager._glGenBuffers();
-        renderStatusBuffer = MemoryUtil.memAlloc(boneRenderStatusList.size() * BYTES_PER_PART);
     }
 
     public void compile(RenderType type, PoseStack.Pose pose) {
@@ -146,6 +146,8 @@ public class BufferedMeshModel{
         rawBuilderBuffer.close();
 
         renderVertexBuffer = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+        renderStatusBufferId = GlStateManager._glGenBuffers();
+        renderStatusBuffer = MemoryUtil.memAlloc(boneRenderStatusList.size() * BYTES_PER_PART);
     }
 
     protected void compileVertexToBuffer(VertexConsumer rawData, Bone root, PoseStack.Pose pose) {
@@ -178,6 +180,7 @@ public class BufferedMeshModel{
             rawDataVertexBuffer.close();
             rawDataVertexBuffer = null;
         }
+        RenderSystem.glDeleteBuffers(this.renderStatusBufferId);
     }
 
     public void render(PoseStack poseStack, int lightmapUV) {
@@ -186,23 +189,48 @@ public class BufferedMeshModel{
             if (shader == null) {
                 return;
             }
+            //write bone render status to renderStatusBuffer
             updateBoneRenderStatus(rootBone, poseStack, lightmapUV);
+            if (renderingVertexCount == 0) {
+                renderStatusBuffer.clear();
+                return;
+            }
+
             renderStatusBuffer.flip();
             GlStateManager._glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, renderStatusBufferId);
             RenderSystem.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, renderStatusBuffer, GL43.GL_DYNAMIC_DRAW);
-            // unbind
             GlStateManager._glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0);
 
+            VertexBufferAccessor rawDataVertexBufferAccessor = (VertexBufferAccessor) rawDataVertexBuffer;
+            VertexBufferAccessor renderVertexBufferAccessor = (VertexBufferAccessor) renderVertexBuffer;
             //TODO: call compute shader
+            callComputeShader(
+                    rawDataVertexBufferAccessor.getVertexBufferId(),
+                    rawDataVertexBufferAccessor.getIndexBufferId(),
+                    renderStatusBufferId,
+                    renderVertexBufferAccessor.getVertexBufferId(),
+                    renderVertexBufferAccessor.getIndexBufferId()
+            );
 
             renderType.setupRenderState();
-            rawDataVertexBuffer.bind();
-            rawDataVertexBuffer.drawWithShader(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix(), shader);
+            renderVertexBuffer.bind();
+            renderVertexBuffer.drawWithShader(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix(), shader);
             VertexBuffer.unbind();
             renderType.clearRenderState();
 
             renderStatusBuffer.clear();
+            renderingVertexCount = 0;
         }
+    }
+
+    protected void callComputeShader(int rawVertexBufferId, int rawIndexBufferId, int renderStatusBufferId,
+                                     int renderVertexBufferId, int renderIndexBufferId) {
+        GL43.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 0, rawVertexBufferId);
+        GL43.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 1, rawIndexBufferId);
+        GL43.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 2, renderStatusBufferId);
+        GL43.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 3, renderVertexBufferId);
+        GL43.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 4, renderIndexBufferId);
+        //TODO: 1. check compute shader 2. dispatch compute shader 3. unbind
     }
 
     protected void updateBoneRenderStatus(Bone root, PoseStack poseStack, int light) {
@@ -211,6 +239,7 @@ public class BufferedMeshModel{
             root.translateAndRotate(poseStack);
             root.updateRenderStatus(poseStack, light);
             root.boneRenderStatus.writeToBuffer(renderStatusBuffer);
+            renderingVertexCount += root.vertexCount;
             for (Bone child : root.children.values()) {
                 updateBoneRenderStatus(child, poseStack, light);
             }
@@ -289,10 +318,12 @@ public class BufferedMeshModel{
         public float xScale, yScale, zScale;
         public final Map<String, Bone> children = new Object2ObjectArrayMap<>();
         public BoneRenderStatus boneRenderStatus;
+        public final int vertexCount;
 
-        public Bone(int index, String name) {
+        public Bone(int index, String name, int vertexCount) {
             this.index = index;
             this.name = name;
+            this.vertexCount = vertexCount;
         }
 
         public void addChild(String name, Bone bone) {
