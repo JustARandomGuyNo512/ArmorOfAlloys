@@ -1,11 +1,14 @@
 package com.sheridan.aoas.model.client;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import com.sheridan.aoas.model.IAnimatedModel;
 import com.sheridan.aoas.model.MeshModelData;
 import com.sheridan.aoas.model.Vertex;
+import com.sheridan.aoas.utils.RenderUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LightTexture;
@@ -15,13 +18,21 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import org.joml.*;
+import org.lwjgl.opengl.GL43;
+import org.lwjgl.system.MemoryUtil;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.stream.Stream;
 
 @OnlyIn(Dist.CLIENT)
 public class BufferedMeshModel{
     public static final int COMPILE_LIGHT = LightTexture.pack(15,15);
+
+    final int BYTES_PER_PART =
+                    64 +         // mat4 pose
+                    48 +         // mat3 normal
+                    4 * 5;
     /**
      * 使用SoA结构更加高效
      * 原始数据段
@@ -44,6 +55,9 @@ public class BufferedMeshModel{
 
     private int boneCount = 0;
     private int vertexCount = 0;
+
+    private int renderStatusBufferId;
+    protected ByteBuffer renderStatusBuffer;
 
     public BufferedMeshModel(MeshModelData root) {
         Map<String, Bone> boneMap = new HashMap<>();
@@ -95,8 +109,15 @@ public class BufferedMeshModel{
             boneIndices[entry.getKey().index] = vertexTail;
             vertexTail += vertices.size();
             boneIndices[entry.getKey().index + 1] = vertexTail;
-            boneRenderStatusList.add(new BoneRenderStatus(entry.getKey().index));
+            BoneRenderStatus boneRenderStatus = new BoneRenderStatus(
+                    entry.getKey().index,
+                    boneIndices[entry.getKey().index],
+                    boneIndices[entry.getKey().index + 1]);
+            boneRenderStatusList.add(boneRenderStatus);
+            entry.getKey().boneRenderStatus = boneRenderStatus;
         }
+        renderStatusBufferId = GlStateManager._glGenBuffers();
+        renderStatusBuffer = MemoryUtil.memAlloc(boneRenderStatusList.size() * BYTES_PER_PART);
     }
 
     public void compile(RenderType type, PoseStack.Pose pose) {
@@ -104,31 +125,35 @@ public class BufferedMeshModel{
             return;
         }
         renderType = type;
-        renderVertexBuffer = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
         rawDataVertexBuffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
-        ByteBufferBuilder byteBufferBuilder = new ByteBufferBuilder(1024 * 256);
-        BufferBuilder builder = new BufferBuilder(byteBufferBuilder, type.mode, type.format);
-        compileVertexToBuffer(builder, rootBone, pose);
-        MeshData data = builder.build();
-        if (data != null) {
+
+        ByteBufferBuilder rawBuilderBuffer = new ByteBufferBuilder(1024 * 256);
+        BufferBuilder rawBuilder = new BufferBuilder(rawBuilderBuffer, type.mode, type.format);
+
+        compileVertexToBuffer(rawBuilder, rootBone, pose);
+        MeshData rawData = rawBuilder.build();
+
+        if (rawData != null) {
             if (type.sortOnUpload()) {
-                data.sortQuads(byteBufferBuilder, RenderSystem.getVertexSorting());
+                rawData.sortQuads(rawBuilderBuffer, RenderSystem.getVertexSorting());
             }
-            renderVertexBuffer.bind();
-            renderVertexBuffer.upload(data);
+            rawDataVertexBuffer.bind();
+            rawDataVertexBuffer.upload(rawData);
             VertexBuffer.unbind();
         }
-        byteBufferBuilder.discard();
-        byteBufferBuilder.close();
+
+        rawBuilderBuffer.discard();
+        rawBuilderBuffer.close();
+
+        renderVertexBuffer = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
     }
 
-    protected void compileVertexToBuffer(VertexConsumer vertexConsumer, Bone root, PoseStack.Pose pose) {
+    protected void compileVertexToBuffer(VertexConsumer rawData, Bone root, PoseStack.Pose pose) {
         int vertexStart = boneIndices[root.index];
         int vertexEnd = boneIndices[root.index + 1];
         for (int i = vertexStart; i < vertexEnd; i++) {
             int posIndex = i * 3;
-            vertexConsumer
-                    .addVertex(pose, positions[posIndex], positions[posIndex + 1], positions[posIndex + 2])
+            rawData.addVertex(pose, positions[posIndex], positions[posIndex + 1], positions[posIndex + 2])
                     .setColor(1f, 1f, 1f, 1f)
                     .setUv(uvs[i * 2], uvs[i * 2 + 1])
                     .setOverlay(OverlayTexture.NO_OVERLAY)
@@ -136,7 +161,7 @@ public class BufferedMeshModel{
                     .setNormal(pose, normals[posIndex], normals[posIndex + 1], normals[posIndex + 2]);
         }
         for (Bone child : root.children.values()) {
-            compileVertexToBuffer(vertexConsumer, child, pose);
+            compileVertexToBuffer(rawData, child, pose);
         }
     }
 
@@ -161,33 +186,100 @@ public class BufferedMeshModel{
             if (shader == null) {
                 return;
             }
-            updateBoneRenderStatus();
+            updateBoneRenderStatus(rootBone, poseStack, lightmapUV);
+            renderStatusBuffer.flip();
+            GlStateManager._glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, renderStatusBufferId);
+            RenderSystem.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, renderStatusBuffer, GL43.GL_DYNAMIC_DRAW);
+            // unbind
+            GlStateManager._glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0);
+
+            //TODO: call compute shader
+
             renderType.setupRenderState();
-            renderVertexBuffer.bind();
-            renderVertexBuffer.drawWithShader(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix(), shader);
+            rawDataVertexBuffer.bind();
+            rawDataVertexBuffer.drawWithShader(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix(), shader);
             VertexBuffer.unbind();
             renderType.clearRenderState();
+
+            renderStatusBuffer.clear();
         }
     }
 
-    protected void updateBoneRenderStatus() {
-
+    protected void updateBoneRenderStatus(Bone root, PoseStack poseStack, int light) {
+        if (root.visible) {
+            poseStack.pushPose();
+            root.translateAndRotate(poseStack);
+            root.updateRenderStatus(poseStack, light);
+            root.boneRenderStatus.writeToBuffer(renderStatusBuffer);
+            for (Bone child : root.children.values()) {
+                updateBoneRenderStatus(child, poseStack, light);
+            }
+            poseStack.popPose();
+        }
     }
 
     @OnlyIn(Dist.CLIENT)
     public static class BoneRenderStatus {
-        public PartPose pose;
+        public final int boneIndex;
+        //渲染状态控制：
+        public PoseStack.Pose pose;
         public int lightmapUV;
-        public Vector2i UVOffset;
-        public int boneIndex;
+        public int UOffest;
+        public int VOffset;
+        public final int vertexStart;
+        public final int vertexEnd;
 
-        public BoneRenderStatus(int boneIndex) {
+        public BoneRenderStatus(int boneIndex, int vertexStart, int vertexEnd) {
             this.boneIndex = boneIndex;
+            this.vertexStart = vertexStart;
+            this.vertexEnd = vertexEnd;
+            PoseStack poseStack = new PoseStack();
+            this.pose = poseStack.last();
+        }
+
+        public void writeToBuffer(ByteBuffer buffer) {
+            Matrix4f pose = this.pose.pose();
+            Matrix3f normal = this.pose.normal();
+
+            buffer.putFloat(pose.m00());
+            buffer.putFloat(pose.m01());
+            buffer.putFloat(pose.m02());
+            buffer.putFloat(pose.m03());
+            buffer.putFloat(pose.m10());
+            buffer.putFloat(pose.m11());
+            buffer.putFloat(pose.m12());
+            buffer.putFloat(pose.m13());
+            buffer.putFloat(pose.m20());
+            buffer.putFloat(pose.m21());
+            buffer.putFloat(pose.m22());
+            buffer.putFloat(pose.m23());
+            buffer.putFloat(pose.m30());
+            buffer.putFloat(pose.m31());
+            buffer.putFloat(pose.m32());
+            buffer.putFloat(pose.m33());
+
+            buffer.putFloat(normal.m00);
+            buffer.putFloat(normal.m01);
+            buffer.putFloat(normal.m02);
+            buffer.putFloat(normal.m10);
+            buffer.putFloat(normal.m11);
+            buffer.putFloat(normal.m12);
+            buffer.putFloat(normal.m20);
+            buffer.putFloat(normal.m21);
+            buffer.putFloat(normal.m22);
+
+            buffer.putInt(lightmapUV);
+            buffer.putInt(UOffest);
+            buffer.putInt(VOffset);
+            buffer.putInt(vertexStart);
+            buffer.putInt(vertexEnd);
+            buffer.putInt(boneIndex);
         }
     }
 
     @OnlyIn(Dist.CLIENT)
     public static class Bone implements IAnimatedModel{
+        public boolean visible;
         public Bone parent;
         public final String name;
         public final int index;
@@ -196,6 +288,7 @@ public class BufferedMeshModel{
         public float xRot, yRot, zRot;
         public float xScale, yScale, zScale;
         public final Map<String, Bone> children = new Object2ObjectArrayMap<>();
+        public BoneRenderStatus boneRenderStatus;
 
         public Bone(int index, String name) {
             this.index = index;
@@ -210,6 +303,11 @@ public class BufferedMeshModel{
         public void loadPose(MeshModelData meshModelData) {
             initialPose = meshModelData.getPose();
             resetPose();
+        }
+
+        public void updateRenderStatus(PoseStack poseStack, int light) {
+            boneRenderStatus.pose = RenderUtils.copyPoseStack(poseStack).last();
+            boneRenderStatus.lightmapUV = light;
         }
 
         @Override

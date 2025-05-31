@@ -5,6 +5,7 @@ import com.sheridan.aoas.events.common.TestEvents;
 import com.sheridan.aoas.model.MeshModelData;
 import com.sheridan.aoas.model.gltf.io.GltfModelLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -68,6 +69,7 @@ public class ArmorOfAlloys {
     public ArmorOfAlloys(IEventBus modEventBus, ModContainer modContainer) {
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
+        modEventBus.addListener(this::clientSetUp);
 
         // Register the Deferred Register to the mod event bus so blocks get registered
         BLOCKS.register(modEventBus);
@@ -87,6 +89,11 @@ public class ArmorOfAlloys {
 
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+    }
+
+    private void clientSetUp(final FMLClientSetupEvent event) {
+        // 一些客户端
+
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

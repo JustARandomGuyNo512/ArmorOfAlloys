@@ -1,0 +1,28 @@
+// 原始数据
+layout(std430, binding = 0) readonly buffer OriginalVertexData {
+    float originalBuffer[];
+};
+
+// part渲染状态
+layout(std430, binding = 1) readonly buffer BoneRenderStatus {
+    PartRenderInfo partList[];
+};
+
+struct BoneRenderStatus {
+    mat4 pose;             // 模型变换矩阵
+    mat3 normal;           // 法线矩阵
+    uint lightmapUV;
+    uint UOffset;
+    uint VOffset;
+    uint vertexStart;
+    uint vertexEnd;
+};
+
+// 渲染buffer
+layout(std430, binding = 2) buffer RenderVertexBuffer {
+    float originalBuffer[];
+};
+
+void main() {
+
+}

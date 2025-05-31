@@ -1,4 +1,4 @@
-package com.sheridan.aoas.events.client.render;
+package com.sheridan.aoas.client.render;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
