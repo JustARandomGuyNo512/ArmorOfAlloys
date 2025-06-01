@@ -3,6 +3,7 @@ package com.sheridan.aoas;
 import com.mojang.logging.LogUtils;
 import com.sheridan.aoas.events.common.TestEvents;
 import com.sheridan.aoas.model.MeshModelData;
+import com.sheridan.aoas.model.client.BufferedMeshModel;
 import com.sheridan.aoas.model.gltf.io.GltfModelLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -93,7 +94,7 @@ public class ArmorOfAlloys {
 
     private void clientSetUp(final FMLClientSetupEvent event) {
         // 一些客户端
-
+        BufferedMeshModel.initComputeShader(event);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
