@@ -70,7 +70,7 @@ public class IrisCompat {
         }
     }
 
-    public static Matrix4f getShadowModelviewMat() {
+    public static Matrix4f getShadowModelViewMat() {
         if (modelviewField == null) {
             return RenderSystem.getModelViewMatrix();
         }
