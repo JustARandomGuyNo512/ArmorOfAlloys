@@ -36,6 +36,7 @@ import static org.lwjgl.opengl.GL30.glVertexAttribI2i;
 
 @OnlyIn(Dist.CLIENT)
 public class BufferedMeshModel{
+    protected CompatType compatType = CompatType.VANILLA;
     public static final int COMPILE_LIGHT = LightTexture.pack(15,15);
     /**
      * 使用SoA结构更加高效
@@ -143,8 +144,24 @@ public class BufferedMeshModel{
         }
         rawBuilderBuffer.discard();
         rawBuilderBuffer.close();
-        normalMatBuffer = BufferUtils.createFloatBuffer(9);
-        transMatBuffer = BufferUtils.createFloatBuffer(16);
+        if (normalMatBuffer == null) {
+            normalMatBuffer = BufferUtils.createFloatBuffer(9);
+        }
+        if (transMatBuffer == null) {
+            transMatBuffer = BufferUtils.createFloatBuffer(16);
+        }
+    }
+
+    protected boolean updateCompatType() {
+        CompatType prevType = ClientProxy.isIrisShaderInUse ? CompatType.IRIS : CompatType.VANILLA;
+        if (compatType != prevType) {
+            compatType = prevType;
+            release();
+            compile(renderType);
+            System.out.println("Recompile for compat type: " + compatType);
+            return false;
+        }
+        return true;
     }
 
     protected void compileVertexToBuffer(VertexConsumer rawData, Bone root, PoseStack.Pose pose) {
@@ -175,12 +192,18 @@ public class BufferedMeshModel{
             rawDataVertexBuffer = null;
         }
         if (normalMatBuffer != null) {
-            normalMatBuffer.duplicate();
+            normalMatBuffer.clear();
+        }
+        if (transMatBuffer != null) {
+            transMatBuffer.clear();
         }
     }
 
     public void render(PoseStack poseStack, int lightmapUV, float partialTick) {
         if (rawDataVertexBuffer != null && renderType != null) {
+            if (!updateCompatType()) {
+                return;
+            }
             ShaderInstance shader = GameRenderer.getRendertypeEntityCutoutShader();
             if (shader == null) {
                 return;
@@ -205,7 +228,7 @@ public class BufferedMeshModel{
             shader.apply();
             for (BoneRenderStatus status : boneRenderStatusList) {
                 if (status.visible) {
-                    if (ClientProxy.isIrisShaderInUse) {
+                    if (compatType == CompatType.IRIS) {
                         setUpShaderLightCurrent(lightmapUV);
                         int override = GL20.glGetUniformLocation(shader.getId(), "doTransformOverride");
                         if (override != -1) {
@@ -459,5 +482,9 @@ public class BufferedMeshModel{
             yScale = 1.0F;
             zScale = 1.0F;
         }
+    }
+    public enum CompatType {
+        VANILLA,
+        IRIS
     }
 }

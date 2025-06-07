@@ -5,7 +5,7 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "aoas.refmap.json",
   "mixins": [
-    "DebugMixin"
+    "IrisCompatMixin"
   ],
   "client": [
     "LightTextureAccessor",

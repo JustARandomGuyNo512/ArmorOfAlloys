@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.Map;
 
 @Mixin(TransformPatcher.class)
-public class DebugMixin {
+public class IrisCompatMixin {
 
     @Inject(method = "transform", at = @At("TAIL"), remap = false)
     private static void test1(String name, String vertex, String geometry, String tessControl, String tessEval, String fragment, Parameters parameters, CallbackInfoReturnable<Map<PatchShaderType, String>> cir) {
