@@ -1,16 +1,13 @@
 package com.sheridan.aoas;
 
 import com.mojang.logging.LogUtils;
+import com.sheridan.aoas.events.client.RenderEvents;
 import com.sheridan.aoas.events.common.TestEvents;
-import com.sheridan.aoas.model.MeshModelData;
 import com.sheridan.aoas.model.client.BufferedMeshModel;
-import com.sheridan.aoas.model.gltf.io.GltfModelLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -84,6 +81,7 @@ public class ArmorOfAlloys {
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(TestEvents.class);
+        NeoForge.EVENT_BUS.register(RenderEvents.class);
 
         // Register the item to a creative tab
         modEventBus.addListener(this::addCreative);
@@ -94,7 +92,7 @@ public class ArmorOfAlloys {
 
     private void clientSetUp(final FMLClientSetupEvent event) {
         // 一些客户端
-        BufferedMeshModel.initComputeShader(event);
+
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

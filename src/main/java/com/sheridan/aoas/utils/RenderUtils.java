@@ -1,8 +1,15 @@
 package com.sheridan.aoas.utils;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.sheridan.aoas.mixin.LightTextureAccessor;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LightTexture;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL20;
 
@@ -109,5 +116,38 @@ public class RenderUtils {
             case GL_FLOAT_MAT4 -> "mat4";
             default -> "Unknown(" + type + ")";
         };
+    }
+
+    /**
+     * 返回一个在给定的投影矩阵中，绝对位于视锥体外的位置，可用于ndc裁剪隐藏的物体或者跳过光栅化和fragment shader对某些物体的处理
+     * @param projectionMatrix 投影矩阵，用于将坐标从视图空间转换到剪裁空间
+     * @return 返回一个在视锥体外部的位置，以Vector3f形式表示
+     */
+    public static Vector3f getOutsideFrustumPosition(Matrix4f projectionMatrix) {
+        Vector4f clipSpace = new Vector4f(2.0f, 0.0f, 0.0f, 1.0f);
+        Matrix4f invProj = new Matrix4f(projectionMatrix).invert();
+        Vector4f viewSpace = invProj.transform(new Vector4f(clipSpace));
+        viewSpace.div(viewSpace.w);
+        return new Vector3f(viewSpace.x, viewSpace.y, viewSpace.z);
+    }
+
+    static Vector3f NONE = new Vector3f(1, 1, 1);
+
+    public static Vector3f vanillaLightColorUnpack(int packedLight) {
+        LightTexture lightmap = Minecraft.getInstance().gameRenderer.lightTexture();
+        NativeImage pixels = ((LightTextureAccessor) lightmap).getLightTexture().getPixels();
+        if (pixels == null) {
+            return NONE;
+        }
+
+        int u = packedLight & '\uffff';
+        int v = packedLight >> 16 & '\uffff';
+
+        int color = pixels.getPixelRGBA(u / 16, v / 16);
+
+        float b = ((color >> 16) & 0xFF) / 255f;
+        float g = ((color >> 8) & 0xFF) / 255f;
+        float r = (color & 0xFF) / 255f;
+        return new Vector3f(r, g, b);
     }
 }

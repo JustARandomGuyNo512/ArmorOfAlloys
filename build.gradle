@@ -123,11 +123,14 @@ dependencies {
         exclude group: 'com.google.code.gson', module: 'gson'
     }
 
+    implementation("io.github.douira:glsl-transformer:2.0.1")
+
     additionalRuntimeClasspath "org.jmonkeyengine:jme3-core:3.7.0-stable"
     additionalRuntimeClasspath "org.jmonkeyengine:jme3-plugins:3.7.0-stable"
 
     implementation "curse.maven:sodium-394468:6382651"
     implementation "curse.maven:irisshaders-455508:6213632"
+
 }
 
 tasks.named("shadowJar") {
