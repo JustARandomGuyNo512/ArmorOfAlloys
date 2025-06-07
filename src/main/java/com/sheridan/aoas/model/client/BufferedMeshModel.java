@@ -12,9 +12,7 @@ import com.sheridan.aoas.model.IAnimatedModel;
 import com.sheridan.aoas.model.MeshModelData;
 import com.sheridan.aoas.model.Vertex;
 import com.sheridan.aoas.utils.RenderUtils;
-import io.github.douira.glsl_transformer.ast.transform.ASTParser;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
-import net.irisshaders.iris.pipeline.programs.ExtendedShader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.renderer.GameRenderer;
@@ -22,23 +20,14 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import org.joml.*;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.*;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.FloatBuffer;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.lwjgl.opengl.GL20.glDisableVertexAttribArray;
@@ -47,10 +36,7 @@ import static org.lwjgl.opengl.GL30.glVertexAttribI2i;
 
 @OnlyIn(Dist.CLIENT)
 public class BufferedMeshModel{
-    public static final Map<String, Integer> RENDER_TYPE_TF_SHADERS = new HashMap<>();
-    public static final Map<String, Integer> RENDER_TYPE_TF_SHADERS_IRIS = new HashMap<>();
     public static final int COMPILE_LIGHT = LightTexture.pack(15,15);
-    private static final float[] color = new float[] {1, 1, 1, 1};
     /**
      * 使用SoA结构更加高效
      * 原始数据段
@@ -151,8 +137,6 @@ public class BufferedMeshModel{
             if (type.sortOnUpload()) {
                 rawData.sortQuads(rawBuilderBuffer, RenderSystem.getVertexSorting());
             }
-            int totalVertexBytes = rawData.vertexBuffer().limit();
-            int floatsPerVertex = totalVertexBytes / vertexCount / 4;
             rawDataVertexBuffer.bind();
             rawDataVertexBuffer.upload(rawData);
             VertexBuffer.unbind();
@@ -201,12 +185,15 @@ public class BufferedMeshModel{
             if (shader == null) {
                 return;
             }
-
+            boolean doVanillaRenderHack = false;
+            if (!ClientProxy.isIrisShaderInUse) {
+                setupAndSaveVanillaRender(poseStack);
+                doVanillaRenderHack = true;
+            }
             updateBoneRenderStatus(rootBone, poseStack, lightmapUV);
             if (renderingVertexCount == 0) {
                 return;
             }
-
             renderType.setupRenderState();
             VertexBufferAccessor accessor = (VertexBufferAccessor) rawDataVertexBuffer;
             rawDataVertexBuffer.bind();
@@ -269,11 +256,17 @@ public class BufferedMeshModel{
                         }
                     } else {
                         vanillaShaderLightCurrent(lightmapUV, shader, status.pose.normal());
+                        shader.MODEL_VIEW_MATRIX.set(status.pose.pose());
+                        shader.MODEL_VIEW_MATRIX.upload();
                         GlStateManager._drawElements(accessor.getMode().asGLMode, status.vertexCount,
                                 accessor.invokeGetIndexType().asGLType, (long) status.vertexStart * accessor.invokeGetIndexType().bytes);
                         status.visible = false;
                     }
                 }
+            }
+            if (doVanillaRenderHack) {
+                poseStack.popPose();
+                RenderSystem.getModelViewStack().popMatrix();
             }
             glEnableVertexAttribArray(4);
             shader.clear();
@@ -301,6 +294,17 @@ public class BufferedMeshModel{
                         .setNormal(status.pose, normals[posIndex], normals[posIndex + 1], normals[posIndex + 2]);
             }
         }
+    }
+
+    protected void setupAndSaveVanillaRender(PoseStack renderStack) {
+        renderStack.pushPose();
+        RenderSystem.getModelViewStack().pushMatrix();
+        Matrix4f viewMatrix = new Matrix4f(RenderSystem.getModelViewMatrix());
+        Matrix4f entityTransform = renderStack.last().pose();
+
+        Matrix4f modelView = new Matrix4f(viewMatrix);
+        modelView.mul(entityTransform);
+        renderStack.last().pose().set(modelView);
     }
 
     protected void setUpShaderLightCurrent(int light) {
@@ -456,5 +460,4 @@ public class BufferedMeshModel{
             zScale = 1.0F;
         }
     }
-
 }
